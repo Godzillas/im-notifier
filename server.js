@@ -4,6 +4,12 @@ const { z } = require("zod");
 const axios = require("axios");
 require("dotenv").config();
 
+// Get default webhook URLs from environment variables
+const DEFAULT_FEISHU_WEBHOOK = process.env.FEISHU_WEBHOOK_URL || "";
+const DEFAULT_DINGTALK_WEBHOOK = process.env.DINGTALK_WEBHOOK_URL || "";
+const DEFAULT_WECHATWORK_WEBHOOK = process.env.WECHAT_WEBHOOK_URL || "";
+const DEFAULT_PLATFORM = process.env.DEFAULT_PLATFORM || "feishu";
+
 // Create an MCP server
 const server = new McpServer({
   name: "IM Notifier",
@@ -21,6 +27,20 @@ server.tool(
   },
   async ({ webhook, message, title }) => {
     try {
+      // Use default webhook if not provided
+      const webhookUrl = webhook || DEFAULT_FEISHU_WEBHOOK;
+      
+      if (!webhookUrl) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: No Feishu webhook URL provided. Please provide a webhook URL or set the FEISHU_WEBHOOK_URL environment variable."
+            }
+          ]
+        };
+      }
+      
       // Prepare Feishu message payload
       const payload = {
         msg_type: "text",
@@ -56,7 +76,7 @@ server.tool(
       }
 
       // Send request to Feishu webhook
-      const response = await axios.post(webhook, payload);
+      const response = await axios.post(webhookUrl, payload);
       
       return {
         content: [
@@ -91,6 +111,20 @@ server.tool(
   },
   async ({ webhook, message, title, atMobiles = [], isAtAll = false }) => {
     try {
+      // Use default webhook if not provided
+      const webhookUrl = webhook || DEFAULT_DINGTALK_WEBHOOK;
+      
+      if (!webhookUrl) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: No DingTalk webhook URL provided. Please provide a webhook URL or set the DINGTALK_WEBHOOK_URL environment variable."
+            }
+          ]
+        };
+      }
+      
       // Prepare DingTalk message payload
       const payload = {
         msgtype: "text",
@@ -113,7 +147,7 @@ server.tool(
       }
 
       // Send request to DingTalk webhook
-      const response = await axios.post(webhook, payload);
+      const response = await axios.post(webhookUrl, payload);
       
       return {
         content: [
@@ -147,6 +181,20 @@ server.tool(
   },
   async ({ webhook, message, mentionedList = [], mentionedMobileList = [] }) => {
     try {
+      // Use default webhook if not provided
+      const webhookUrl = webhook || DEFAULT_WECHATWORK_WEBHOOK;
+      
+      if (!webhookUrl) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: No WeChat Work webhook URL provided. Please provide a webhook URL or set the WECHAT_WEBHOOK_URL environment variable."
+            }
+          ]
+        };
+      }
+      
       // Prepare WeChat Work message payload
       const payload = {
         msgtype: "text",
@@ -158,7 +206,7 @@ server.tool(
       };
 
       // Send request to WeChat Work webhook
-      const response = await axios.post(webhook, payload);
+      const response = await axios.post(webhookUrl, payload);
       
       return {
         content: [
@@ -194,14 +242,43 @@ server.tool(
   async ({ webhook, message, title, atUsers = [], isAtAll = false }) => {
     try {
       let platform = "unknown";
+      let webhookUrl = webhook;
       
-      // Detect platform based on webhook URL
-      if (webhook.includes("feishu.cn") || webhook.includes("lark.suite")) {
-        platform = "feishu";
-      } else if (webhook.includes("dingtalk.com")) {
-        platform = "dingtalk";
-      } else if (webhook.includes("qyapi.weixin.qq.com")) {
-        platform = "wechatwork";
+      // If webhook not provided, use default platform and webhook
+      if (!webhookUrl) {
+        platform = DEFAULT_PLATFORM;
+        
+        switch (platform) {
+          case "feishu":
+            webhookUrl = DEFAULT_FEISHU_WEBHOOK;
+            break;
+          case "dingtalk":
+            webhookUrl = DEFAULT_DINGTALK_WEBHOOK;
+            break;
+          case "wechatwork":
+            webhookUrl = DEFAULT_WECHATWORK_WEBHOOK;
+            break;
+        }
+        
+        if (!webhookUrl) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: No webhook URL provided for the default platform (${platform}). Please provide a webhook URL or set the appropriate environment variable.`
+              }
+            ]
+          };
+        }
+      } else {
+        // Detect platform based on webhook URL
+        if (webhookUrl.includes("feishu.cn") || webhookUrl.includes("lark.suite")) {
+          platform = "feishu";
+        } else if (webhookUrl.includes("dingtalk.com")) {
+          platform = "dingtalk";
+        } else if (webhookUrl.includes("qyapi.weixin.qq.com")) {
+          platform = "wechatwork";
+        }
       }
       
       let response;
@@ -239,7 +316,7 @@ server.tool(
               }
             })
           };
-          response = await axios.post(webhook, feishuPayload);
+          response = await axios.post(webhookUrl, feishuPayload);
           break;
           
         case "dingtalk":
@@ -260,7 +337,7 @@ server.tool(
               isAtAll: isAtAll
             }
           };
-          response = await axios.post(webhook, dingtalkPayload);
+          response = await axios.post(webhookUrl, dingtalkPayload);
           break;
           
         case "wechatwork":
@@ -272,7 +349,7 @@ server.tool(
               mentioned_mobile_list: []
             }
           };
-          response = await axios.post(webhook, wechatworkPayload);
+          response = await axios.post(webhookUrl, wechatworkPayload);
           break;
           
         default:
@@ -280,7 +357,7 @@ server.tool(
             content: [
               {
                 type: "text",
-                text: `Unknown platform for webhook URL: ${webhook}`
+                text: `Unknown platform for webhook URL: ${webhookUrl}`
               }
             ]
           };
