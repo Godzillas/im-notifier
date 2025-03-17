@@ -79,13 +79,36 @@ You can test the server locally without Claude by using the HTTP transport mode:
 npm start
 ```
 
-3. Run the test script:
+3. Create a test script to call the server directly. The format should follow the RPC protocol:
 
-```bash
-node test_send.js
+```javascript
+const axios = require('axios');
+
+async function testFeishuSend() {
+  try {
+    const response = await axios.post('http://localhost:3000/rpc', {
+      jsonrpc: '2.0',
+      id: '1',
+      method: 'tool',
+      params: {
+        name: 'feishu_send',
+        parameters: {
+          webhook: 'YOUR_FEISHU_WEBHOOK_URL',
+          message: 'Test message',
+          title: 'Test Title'
+        }
+      }
+    });
+    console.log('Response:', response.data);
+  } catch (error) {
+    console.error('Error:', error.response?.data || error.message);
+  }
+}
+
+testFeishuSend();
 ```
 
-Make sure to update the webhook URLs in the test script with your actual webhook URLs.
+Make sure to update the webhook URLs in your test script with your actual webhook URLs.
 
 ## Available Tools
 
@@ -150,3 +173,24 @@ Format: `https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY`
 ## License
 
 MIT
+
+## Repository Setup
+
+This repository uses `.gitignore` to prevent unnecessary files from being committed:
+
+- `node_modules/` directory is excluded to keep the repository clean and reduce size
+- Environment files (`.env`) are excluded for security reasons
+- Log files and OS-specific files are also excluded
+
+To set up the repository:
+
+1. Clone the repository
+2. Install dependencies with `npm install`
+3. Copy `.env.example` to `.env` and configure your webhook URLs
+4. Start developing!
+
+## Recent Updates
+
+- Removed `test_send.js` and simplified the testing process
+- Added `.gitignore` to prevent `node_modules` from being pushed to the remote repository
+- Enhanced environment variable support for default webhook URLs
